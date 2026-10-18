@@ -1,0 +1,31 @@
+@startuml
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam nodesep 40
+skinparam ranksep 50
+title Сервісний шар і взаємодія шаблонів
+class FitnessFacade <<Facade>>
+class SessionService
+class PlanService
+class StatsService
+class ReportService
+class Repository
+interface CalorieStrategy <<Strategy>>
+class EventBus <<Observer>>
+class PlanBuilder <<Builder>>
+interface WorkoutFactory <<Factory Method>>
+abstract class ReportGenerator <<Template Method>>
+interface ChallengeState <<State>>
+class Challenge
+FitnessFacade --> SessionService
+FitnessFacade --> PlanService
+FitnessFacade --> StatsService
+FitnessFacade --> ReportService
+SessionService --> Repository
+SessionService --> CalorieStrategy
+SessionService --> EventBus
+PlanService --> PlanBuilder
+PlanService --> WorkoutFactory
+ReportService --> ReportGenerator
+Challenge --> ChallengeState
+@enduml

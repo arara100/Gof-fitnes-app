@@ -1,0 +1,86 @@
+@startuml
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam nodesep 40
+skinparam ranksep 50
+title GoF-шаблони
+  interface WorkoutFactory <<Factory Method>> {
+    create(data): Workout
+  }
+  class CardioFactory
+  class StrengthFactory
+  class YogaFactory
+  WorkoutFactory <|.. CardioFactory
+  WorkoutFactory <|.. StrengthFactory
+  WorkoutFactory <|.. YogaFactory
+
+  interface CalorieStrategy <<Strategy>> {
+    calculate(profile, workout, minutes): float
+  }
+  class CardioCalories
+  class StrengthCalories
+  class YogaCalories
+  CalorieStrategy <|.. CardioCalories
+  CalorieStrategy <|.. StrengthCalories
+  CalorieStrategy <|.. YogaCalories
+
+  class PlanBuilder <<Builder>> {
+    for_user()
+    goal()
+    add_workout()
+    build()
+  }
+  interface PlanComponent <<Decorator>> {
+    items()
+  }
+  class BasePlan
+  abstract class PlanDecorator
+  class WarmUpDecorator
+  class StretchDecorator
+  PlanComponent <|.. BasePlan
+  PlanComponent <|.. PlanDecorator
+  PlanDecorator <|-- WarmUpDecorator
+  PlanDecorator <|-- StretchDecorator
+  PlanDecorator o-- PlanComponent
+
+  class EventBus <<Observer>> {
+    subscribe(event, handler)
+    publish(event, payload)
+  }
+  interface Observer {
+    handle(event)
+  }
+  class StatsObserver
+  class AchievementObserver
+  class ChallengeObserver
+  class LeaderboardObserver
+  Observer <|.. StatsObserver
+  Observer <|.. AchievementObserver
+  Observer <|.. ChallengeObserver
+  Observer <|.. LeaderboardObserver
+  EventBus o-- Observer
+
+  abstract class ReportGenerator <<Template Method>> {
+    generate()
+    #collect()
+    #aggregate()
+    #format()
+  }
+  class ProgressReport
+  class PopularWorkoutsReport
+  class AverageActivityReport
+  ReportGenerator <|-- ProgressReport
+  ReportGenerator <|-- PopularWorkoutsReport
+  ReportGenerator <|-- AverageActivityReport
+
+  interface ChallengeState <<State>> {
+    join()
+    update_progress()
+  }
+  class UpcomingState
+  class ActiveState
+  class FinishedState
+  ChallengeState <|.. UpcomingState
+  ChallengeState <|.. ActiveState
+  ChallengeState <|.. FinishedState
+@enduml
