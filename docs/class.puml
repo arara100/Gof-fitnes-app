@@ -1,0 +1,112 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+package "Domain" {
+  class User { id; email; password_hash; role }
+  class Profile { gender; age; weight_kg; height_cm; goal }
+  abstract class Workout { id; title; duration_min; difficulty\n+type() }
+  class CardioWorkout
+  class StrengthWorkout
+  class YogaWorkout
+  class WorkoutPlan { id; name; goal }
+  class PlanItem { day_of_week; order }
+  class WorkoutSession { performed_at; duration_min; calories }
+  class WeightEntry { date; weight_kg }
+  class Reminder { time; days; enabled }
+  class Achievement { code; title; condition }
+  class Challenge { title; start; end; target }
+  class ChallengeParticipation { progress }
+  Workout <|-- CardioWorkout
+  Workout <|-- StrengthWorkout
+  Workout <|-- YogaWorkout
+  User "1" -- "1" Profile
+  User "1" -- "*" WorkoutPlan
+  WorkoutPlan "1" *-- "*" PlanItem
+  PlanItem "*" --> "1" Workout
+  User "1" -- "*" WorkoutSession
+  WorkoutSession "*" --> "1" Workout
+  User "1" -- "*" WeightEntry
+  User "1" -- "*" Reminder
+  User "*" -- "*" Achievement
+  User "1" -- "*" ChallengeParticipation
+  Challenge "1" -- "*" ChallengeParticipation
+}
+
+package "Patterns" {
+  interface WorkoutFactory { +create(data): Workout }
+  class CardioFactory
+  class StrengthFactory
+  class YogaFactory
+  WorkoutFactory <|.. CardioFactory
+  WorkoutFactory <|.. StrengthFactory
+  WorkoutFactory <|.. YogaFactory
+
+  interface CalorieStrategy { +calculate(profile, workout, minutes): float }
+  class CardioCalories
+  class StrengthCalories
+  class YogaCalories
+  CalorieStrategy <|.. CardioCalories
+  CalorieStrategy <|.. StrengthCalories
+  CalorieStrategy <|.. YogaCalories
+
+  class PlanBuilder { +for_user(); +goal(); +add_workout(); +build() }
+  interface PlanComponent { +items() }
+  class BasePlan
+  abstract class PlanDecorator
+  class WarmUpDecorator
+  class StretchDecorator
+  PlanComponent <|.. BasePlan
+  PlanComponent <|.. PlanDecorator
+  PlanDecorator <|-- WarmUpDecorator
+  PlanDecorator <|-- StretchDecorator
+  PlanDecorator o-- PlanComponent
+
+  class EventBus { +subscribe(event, handler); +publish(event, payload) }
+  interface Observer { +handle(event) }
+  class StatsObserver
+  class AchievementObserver
+  class ChallengeObserver
+  class LeaderboardObserver
+  Observer <|.. StatsObserver
+  Observer <|.. AchievementObserver
+  Observer <|.. ChallengeObserver
+  Observer <|.. LeaderboardObserver
+  EventBus o-- Observer
+
+  abstract class ReportGenerator { +generate(); #collect(); #aggregate(); #format() }
+  class ProgressReport
+  class PopularWorkoutsReport
+  class AverageActivityReport
+  ReportGenerator <|-- ProgressReport
+  ReportGenerator <|-- PopularWorkoutsReport
+  ReportGenerator <|-- AverageActivityReport
+
+  interface ChallengeState { +join(); +update_progress() }
+  class UpcomingState
+  class ActiveState
+  class FinishedState
+  ChallengeState <|.. UpcomingState
+  ChallengeState <|.. ActiveState
+  ChallengeState <|.. FinishedState
+  Challenge --> ChallengeState
+}
+
+package "Services / API" {
+  class FitnessFacade
+  class SessionService
+  class PlanService
+  class StatsService
+  class ReportService
+  class "Repository<T>" as Repo
+  FitnessFacade --> SessionService
+  FitnessFacade --> PlanService
+  FitnessFacade --> StatsService
+  FitnessFacade --> ReportService
+  SessionService --> CalorieStrategy
+  SessionService --> EventBus
+  PlanService --> PlanBuilder
+  PlanService --> WorkoutFactory
+  ReportService --> ReportGenerator
+  SessionService --> Repo
+}
+@enduml

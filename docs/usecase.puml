@@ -1,0 +1,46 @@
+@startuml
+left to right direction
+actor "Гість" as G
+actor "Користувач" as U
+actor "Адміністратор" as A
+actor "Система\n(планувальник)" as S
+U -|> G
+A -|> U
+
+rectangle "Фітнес-додаток" {
+  usecase "Реєстрація / вхід" as UC1
+  usecase "Редагувати профіль\n(стать, вік, вага, зріст)" as UC2
+  usecase "Переглядати бібліотеку тренувань" as UC3
+  usecase "Сформувати індивідуальну програму" as UC4
+  usecase "Зафіксувати тренування" as UC5
+  usecase "Записати вагу" as UC6
+  usecase "Переглянути статистику та графік прогресу" as UC7
+  usecase "Налаштувати нагадування" as UC8
+  usecase "Переглянути досягнення та рейтинг" as UC9
+  usecase "Приєднатися до челенджу" as UC10
+  usecase "Керувати тренуваннями та вправами" as UC11
+  usecase "Керувати досягненнями та челенджами" as UC12
+  usecase "Керувати користувачами" as UC13
+  usecase "Переглянути звіти\n(популярні тренування, середня активність)" as UC14
+  usecase "Надіслати нагадування" as UC15
+  usecase "Нарахувати досягнення\nта оновити рейтинг" as UC16
+}
+G --> UC1
+U --> UC2
+U --> UC3
+U --> UC4
+U --> UC5
+U --> UC6
+U --> UC7
+U --> UC8
+U --> UC9
+U --> UC10
+A --> UC11
+A --> UC12
+A --> UC13
+A --> UC14
+S --> UC15
+S --> UC16
+UC5 ..> UC16 : <<include>>
+UC4 ..> UC3 : <<include>>
+@enduml
