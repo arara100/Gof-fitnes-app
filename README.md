@@ -15,7 +15,7 @@ python run.py
 Документація та UML-діаграми: [docs/](docs/)
 
 ## UML-діаграми
-Джерела — `.puml` (PlantUML), зображення — `.png` у [docs/](docs/). Перегенерація: `plantuml -tpng -charset UTF-8 docs/*.puml`
+Зображення діаграм — у [docs/](docs/).
 
 ### Use Case
 ![Use Case](docs/usecase.png)
