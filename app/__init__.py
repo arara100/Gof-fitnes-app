@@ -9,6 +9,8 @@ def create_app(config_class=Config):
     app.config.from_object(config_class)
 
     db.init_app(app)
+    from app import models  # noqa: F401  (register models for migrations)
+
     migrate.init_app(app, db)
     jwt.init_app(app)
 
