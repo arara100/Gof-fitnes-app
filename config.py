@@ -12,4 +12,5 @@ class Config:
 
 class TestConfig(Config):
     TESTING = True
+    JWT_SECRET_KEY = "test-secret-key-at-least-32-bytes-long"
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"

@@ -1,7 +1,9 @@
 from flask import Flask, jsonify
+from marshmallow import ValidationError
 
 from config import Config
 from app.extensions import db, jwt, migrate
+from app.services.errors import ServiceError
 
 
 def create_app(config_class=Config):
@@ -13,6 +15,19 @@ def create_app(config_class=Config):
 
     migrate.init_app(app, db)
     jwt.init_app(app)
+
+    from app.api import auth, users
+
+    app.register_blueprint(auth.bp)
+    app.register_blueprint(users.bp)
+
+    @app.errorhandler(ServiceError)
+    def handle_service_error(err):
+        return jsonify(error=err.message), err.status_code
+
+    @app.errorhandler(ValidationError)
+    def handle_validation_error(err):
+        return jsonify(error="Validation failed", details=err.messages), 422
 
     @app.get("/api/health")
     def health():
