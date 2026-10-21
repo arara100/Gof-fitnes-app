@@ -16,10 +16,11 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
     jwt.init_app(app)
 
-    from app.api import auth, users
+    from app.api import auth, users, workouts
 
     app.register_blueprint(auth.bp)
     app.register_blueprint(users.bp)
+    app.register_blueprint(workouts.bp)
 
     @app.errorhandler(ServiceError)
     def handle_service_error(err):

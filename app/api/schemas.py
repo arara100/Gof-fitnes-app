@@ -32,3 +32,30 @@ def serialize_user(user):
         "profile": {f: getattr(profile, f) for f in ("gender", "age", "weight_kg", "height_cm", "goal")}
         if profile else None,
     }
+
+
+DIFFICULTIES = ("easy", "medium", "hard")
+
+
+class WorkoutCreateSchema(Schema):
+    type = fields.String(required=True, validate=validate.OneOf(("cardio", "strength", "yoga")))
+    title = fields.String(required=True, validate=validate.Length(min=1, max=120))
+    description = fields.String(allow_none=True)
+    duration_min = fields.Integer(required=True, validate=validate.Range(min=1, max=600))
+    difficulty = fields.String(validate=validate.OneOf(DIFFICULTIES))
+    met = fields.Float(validate=validate.Range(min=1, max=25))
+
+
+class WorkoutUpdateSchema(Schema):
+    title = fields.String(validate=validate.Length(min=1, max=120))
+    description = fields.String(allow_none=True)
+    duration_min = fields.Integer(validate=validate.Range(min=1, max=600))
+    difficulty = fields.String(validate=validate.OneOf(DIFFICULTIES))
+    met = fields.Float(validate=validate.Range(min=1, max=25))
+
+
+def serialize_workout(w):
+    return {
+        "id": w.id, "type": w.type, "title": w.title, "description": w.description,
+        "duration_min": w.duration_min, "difficulty": w.difficulty, "met": w.met,
+    }
