@@ -16,13 +16,20 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
     jwt.init_app(app)
 
-    from app.api import auth, plans, sessions, users, workouts
+    from app.api import auth, plans, reminders, sessions, social, stats, users, workouts
 
     app.register_blueprint(auth.bp)
     app.register_blueprint(users.bp)
     app.register_blueprint(workouts.bp)
     app.register_blueprint(plans.bp)
     app.register_blueprint(sessions.bp)
+    app.register_blueprint(stats.bp)
+    app.register_blueprint(social.bp)
+    app.register_blueprint(reminders.bp)
+
+    from app.patterns.observers import register_observers
+
+    register_observers()
 
     @app.errorhandler(ServiceError)
     def handle_service_error(err):
@@ -35,5 +42,14 @@ def create_app(config_class=Config):
     @app.get("/api/health")
     def health():
         return jsonify(status="ok")
+
+    if app.config.get("SCHEDULER_ENABLED"):
+        import os
+
+        # With the debug reloader only the child process (WERKZEUG_RUN_MAIN) should run jobs.
+        if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+            from app.scheduler import start_scheduler
+
+            start_scheduler(app)
 
     return app

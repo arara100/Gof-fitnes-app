@@ -29,7 +29,8 @@ class EventBus:
         self._handlers = defaultdict(list)
 
     def subscribe(self, event_type, handler):
-        self._handlers[event_type].append(handler)
+        if handler not in self._handlers[event_type]:  # idempotent: app factory may run many times
+            self._handlers[event_type].append(handler)
 
     def unsubscribe(self, event_type, handler):
         if handler in self._handlers[event_type]:
