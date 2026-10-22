@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Мої програми тренувань</h1>
+<div class="grid cols-2">
+  <div>
+    <div class="card mb"><h2>Згенерувати програму</h2>
+      <div class="field"><label>Ціль (за замовчуванням — із профілю)</label>
+        <select id="g-goal"><option value="">З профілю</option><option value="lose_weight">Схуднення</option><option value="gain_muscle">Набір маси</option><option value="endurance">Витривалість</option></select></div>
+      <div class="field"><label>Назва (необов'язково)</label><input id="g-name"></div>
+      <button id="gen">Згенерувати</button></div>
+    <div class="card"><h2>Створити власну</h2>
+      <div class="field"><label>Назва</label><input id="c-name"></div>
+      <div id="c-rows"></div>
+      <div class="row"><button class="ghost small" id="c-add">+ Додати тренування</button><button id="c-save">Зберегти програму</button></div></div>
+  </div>
+  <div class="card"><h2>Програми</h2><div id="plans" class="mb"></div>
+    <div class="row mb"><label class="inline"><input type="checkbox" id="warm"> Розминка</label><label class="inline"><input type="checkbox" id="stretch"> Розтяжка</label></div>
+    <div id="detail"><div class="empty">Оберіть програму</div></div></div>
+</div>
+{% endblock %}
+{% block script %}
+let workouts = [], currentId = null;
+const dayOpts = DAYS.map((d, i) => `<option value="${i}">${d}</option>`).join('');
+function addRow() {
+  const div = document.createElement('div'); div.className = 'row mb';
+  div.innerHTML = `<select class="c-day" style="width:80px">${dayOpts}</select><select class="c-w" style="flex:1">${optionsHtml(workouts, 'id', w => w.title)}</select><button class="ghost small danger-x">✕</button>`;
+  div.querySelector('button').onclick = () => div.remove();
+  document.getElementById('c-rows').appendChild(div);
+}
+async function loadPlans() {
+  const plans = await api('/plans');
+  document.getElementById('plans').innerHTML = plans.map(p =>
+    `<div class="row between mb"><a href="#" data-id="${p.id}">${esc(p.name)}</a><span class="row"><span class="badge">${GOAL_NAMES[p.goal] || 'власна'}</span><button class="small danger" data-del="${p.id}">✕</button></span></div>`).join('') || '<div class="empty">Програм ще немає</div>';
+  document.querySelectorAll('#plans a').forEach(a => a.onclick = safe(async e => { e.preventDefault(); currentId = +a.dataset.id; await showPlan(); }));
+  document.querySelectorAll('#plans button').forEach(b => b.onclick = safe(async () => {
+    await api('/plans/' + b.dataset.del, { method: 'DELETE' });
+    if (currentId === +b.dataset.del) { currentId = null; document.getElementById('detail').innerHTML = '<div class="empty">Оберіть програму</div>'; }
+    loadPlans();
+  }));
+}
+async function showPlan() {
+  if (!currentId) return;
+  const q = `?warmup=${document.getElementById('warm').checked}&stretch=${document.getElementById('stretch').checked}`;
+  const p = await api('/plans/' + currentId + q);
+  const byDay = {};
+  p.entries.forEach(e => (byDay[e.day] = byDay[e.day] || []).push(e));
+  document.getElementById('detail').innerHTML = `<h2>${esc(p.name)}</h2>` + Object.keys(byDay).sort().map(d =>
+    `<div class="mb"><b>${DAYS[d]}</b>` + byDay[d].map(e => `<div class="row between"><span>${e.kind === 'workout' ? '' : '· '}${esc(e.title)}</span><span class="muted">${e.duration_min} хв</span></div>`).join('') + '</div>').join('');
+}
+document.getElementById('warm').onchange = safe(showPlan);
+document.getElementById('stretch').onchange = safe(showPlan);
+document.getElementById('gen').onclick = safe(async () => {
+  const body = {}; const g = document.getElementById('g-goal').value, n = document.getElementById('g-name').value;
+  if (g) body.goal = g; if (n) body.name = n;
+  const p = await api('/plans/generate', { method: 'POST', body });
+  currentId = p.id; toast('Програму створено'); await loadPlans(); await showPlan();
+});
+document.getElementById('c-add').onclick = addRow;
+document.getElementById('c-save').onclick = safe(async () => {
+  const items = [...document.querySelectorAll('#c-rows .row')].map(r => ({ day_of_week: +r.querySelector('.c-day').value, workout_id: +r.querySelector('.c-w').value }));
+  const p = await api('/plans', { method: 'POST', body: { name: document.getElementById('c-name').value, items } });
+  currentId = p.id; toast('Програму збережено'); document.getElementById('c-rows').innerHTML = ''; await loadPlans(); await showPlan();
+});
+workouts = await api('/workouts'); addRow();
+await loadPlans();
+{% endblock %}

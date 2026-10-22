@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block auth %}await requireAuth({ admin: true });{% endblock %}
+{% block content %}
+<h1>Адмін-панель</h1>
+<div class="tabs" id="tabs">
+  <button data-tab="workouts" class="on">Тренування</button><button data-tab="achievements">Досягнення</button>
+  <button data-tab="challenges">Челенджі</button><button data-tab="users">Користувачі</button><button data-tab="reports">Звіти</button>
+</div>
+
+<section id="tab-workouts">
+  <div class="grid cols-2">
+    <div class="card"><h2 id="w-title">Нове тренування</h2>
+      <div class="field"><label>Тип</label><select id="w-type"><option value="cardio">Кардіо</option><option value="strength">Силові</option><option value="yoga">Йога</option></select></div>
+      <div class="field"><label>Назва</label><input id="w-name"></div>
+      <div class="field"><label>Опис</label><input id="w-desc"></div>
+      <div class="row"><div class="field" style="flex:1"><label>Тривалість, хв</label><input type="number" id="w-dur" min="1" value="30"></div>
+        <div class="field" style="flex:1"><label>Складність</label><select id="w-diff"><option value="easy">Легко</option><option value="medium" selected>Середньо</option><option value="hard">Важко</option></select></div>
+        <div class="field" style="flex:1"><label>MET (необов'язково)</label><input type="number" id="w-met" step="0.1"></div></div>
+      <div class="row"><button id="w-save">Зберегти</button><button class="ghost" id="w-cancel" hidden>Скасувати</button></div></div>
+    <div class="card"><h2>Усі тренування</h2><div id="w-list"></div></div>
+  </div>
+</section>
+
+<section id="tab-achievements" hidden>
+  <div class="grid cols-2">
+    <div class="card"><h2 id="a-title">Нове досягнення</h2>
+      <div class="field"><label>Код (унікальний)</label><input id="a-code"></div>
+      <div class="field"><label>Назва</label><input id="a-name"></div>
+      <div class="field"><label>Опис</label><input id="a-desc"></div>
+      <div class="row"><div class="field" style="flex:1"><label>Метрика</label><select id="a-metric"><option value="sessions">Тренування</option><option value="calories">Калорії</option><option value="minutes">Хвилини</option></select></div>
+        <div class="field" style="flex:1"><label>Поріг</label><input type="number" id="a-thr" min="0"></div></div>
+      <div class="row"><button id="a-save">Зберегти</button><button class="ghost" id="a-cancel" hidden>Скасувати</button></div></div>
+    <div class="card"><h2>Усі досягнення</h2><div id="a-list"></div></div>
+  </div>
+</section>
+
+<section id="tab-challenges" hidden>
+  <div class="grid cols-2">
+    <div class="card"><h2 id="c-title">Новий челендж</h2>
+      <div class="field"><label>Назва</label><input id="c-name"></div>
+      <div class="field"><label>Опис</label><input id="c-desc"></div>
+      <div class="row"><div class="field" style="flex:1"><label>Метрика</label><select id="c-metric"><option value="sessions">Тренування</option><option value="calories">Калорії</option><option value="minutes">Хвилини</option></select></div>
+        <div class="field" style="flex:1"><label>Ціль</label><input type="number" id="c-target" min="1"></div></div>
+      <div class="row"><div class="field" style="flex:1"><label>Початок</label><input type="date" id="c-start"></div>
+        <div class="field" style="flex:1"><label>Кінець</label><input type="date" id="c-end"></div></div>
+      <div class="row"><button id="c-save">Зберегти</button><button class="ghost" id="c-cancel" hidden>Скасувати</button></div></div>
+    <div class="card"><h2>Усі челенджі</h2><div id="c-list"></div></div>
+  </div>
+</section>
+
+<section id="tab-users" hidden><div class="card"><h2>Користувачі</h2><div id="u-list"></div></div></section>
+
+<section id="tab-reports" hidden>
+  <div class="row mb"><label style="margin:0">Період:</label>
+    <select id="rp" style="width:auto"><option value="7">7 днів</option><option value="30" selected>30 днів</option><option value="90">90 днів</option></select></div>
+  <div class="grid cols-2">
+    <div class="card"><h2>Найпопулярніші тренування</h2><canvas id="popular"></canvas><div id="pop-empty" class="empty" hidden>Немає даних</div></div>
+    <div class="card"><h2>Середня активність користувачів</h2><div id="avg"></div></div>
+  </div>
+</section>
+{% endblock %}
+{% block script %}
+const editing = { w: null, a: null, c: null };
+const $ = id => document.getElementById(id);
+
+// ---- tabs
+const loaders = {};
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = safe(async () => {
+  document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('section[id^=tab-]').forEach(s => s.hidden = s.id !== 'tab-' + b.dataset.tab);
+  await loaders[b.dataset.tab]();
+}));
+
+// ---- workouts
+loaders.workouts = async () => {
+  const items = await api('/workouts');
+  $('w-list').innerHTML = '<table><tbody>' + items.map(w => `<tr><td>${esc(w.title)}<div class="muted">${TYPE_NAMES[w.type]} · ${w.duration_min} хв · ${DIFF_NAMES[w.difficulty]}</div></td>
+    <td style="text-align:right"><button class="small ghost" data-edit="${w.id}">Змінити</button> <button class="small danger" data-del="${w.id}">✕</button></td></tr>`).join('') + '</tbody></table>';
+  $('w-list').querySelectorAll('[data-edit]').forEach(b => b.onclick = () => {
+    const w = items.find(x => x.id === +b.dataset.edit); editing.w = w.id;
+    $('w-title').textContent = 'Редагування'; $('w-type').value = w.type; $('w-type').disabled = true; $('w-name').value = w.title;
+    $('w-desc').value = w.description || ''; $('w-dur').value = w.duration_min; $('w-diff').value = w.difficulty; $('w-met').value = w.met; $('w-cancel').hidden = false;
+  });
+  $('w-list').querySelectorAll('[data-del]').forEach(b => b.onclick = safe(async () => { await api('/admin/workouts/' + b.dataset.del, { method: 'DELETE' }); toast('Видалено'); loaders.workouts(); }));
+};
+const resetW = () => { editing.w = null; $('w-title').textContent = 'Нове тренування'; $('w-type').disabled = false; $('w-name').value = ''; $('w-desc').value = ''; $('w-met').value = ''; $('w-cancel').hidden = true; };
+$('w-cancel').onclick = resetW;
+$('w-save').onclick = safe(async () => {
+  const body = { title: $('w-name').value, description: $('w-desc').value || null, duration_min: +$('w-dur').value, difficulty: $('w-diff').value };
+  if ($('w-met').value) body.met = +$('w-met').value;
+  if (editing.w) await api('/admin/workouts/' + editing.w, { method: 'PUT', body });
+  else await api('/admin/workouts', { method: 'POST', body: { ...body, type: $('w-type').value } });
+  toast('Збережено'); resetW(); loaders.workouts();
+});
+
+// ---- achievements
+loaders.achievements = async () => {
+  const items = await api('/achievements');
+  $('a-list').innerHTML = '<table><tbody>' + items.map(a => `<tr><td>${esc(a.title)}<div class="muted">${esc(a.code)} · ${a.threshold} ${METRIC_NAMES[a.metric]}</div></td>
+    <td style="text-align:right"><button class="small ghost" data-edit="${a.id}">Змінити</button> <button class="small danger" data-del="${a.id}">✕</button></td></tr>`).join('') + '</tbody></table>';
+  $('a-list').querySelectorAll('[data-edit]').forEach(b => b.onclick = () => {
+    const a = items.find(x => x.id === +b.dataset.edit); editing.a = a.id;
+    $('a-title').textContent = 'Редагування'; $('a-code').value = a.code; $('a-name').value = a.title; $('a-desc').value = a.description || '';
+    $('a-metric').value = a.metric; $('a-thr').value = a.threshold; $('a-cancel').hidden = false;
+  });
+  $('a-list').querySelectorAll('[data-del]').forEach(b => b.onclick = safe(async () => { await api('/admin/achievements/' + b.dataset.del, { method: 'DELETE' }); toast('Видалено'); loaders.achievements(); }));
+};
+const resetA = () => { editing.a = null; $('a-title').textContent = 'Нове досягнення'; for (const id of ['a-code', 'a-name', 'a-desc', 'a-thr']) $(id).value = ''; $('a-cancel').hidden = true; };
+$('a-cancel').onclick = resetA;
+$('a-save').onclick = safe(async () => {
+  const body = { code: $('a-code').value, title: $('a-name').value, description: $('a-desc').value || null, metric: $('a-metric').value, threshold: +$('a-thr').value };
+  if (editing.a) await api('/admin/achievements/' + editing.a, { method: 'PUT', body });
+  else await api('/admin/achievements', { method: 'POST', body });
+  toast('Збережено'); resetA(); loaders.achievements();
+});
+
+// ---- challenges
+loaders.challenges = async () => {
+  const items = await api('/challenges');
+  $('c-list').innerHTML = '<table><tbody>' + items.map(c => `<tr><td>${esc(c.title)} <span class="badge ${c.status}">${STATUS_NAMES[c.status]}</span><div class="muted">${c.start_date} — ${c.end_date} · ${c.target} ${METRIC_NAMES[c.metric]}</div></td>
+    <td style="text-align:right"><button class="small ghost" data-edit="${c.id}">Змінити</button> <button class="small danger" data-del="${c.id}">✕</button></td></tr>`).join('') + '</tbody></table>';
+  $('c-list').querySelectorAll('[data-edit]').forEach(b => b.onclick = () => {
+    const c = items.find(x => x.id === +b.dataset.edit); editing.c = c.id;
+    $('c-title').textContent = 'Редагування'; $('c-name').value = c.title; $('c-desc').value = c.description || ''; $('c-metric').value = c.metric;
+    $('c-target').value = c.target; $('c-start').value = c.start_date; $('c-end').value = c.end_date; $('c-cancel').hidden = false;
+  });
+  $('c-list').querySelectorAll('[data-del]').forEach(b => b.onclick = safe(async () => { await api('/admin/challenges/' + b.dataset.del, { method: 'DELETE' }); toast('Видалено'); loaders.challenges(); }));
+};
+const resetC = () => { editing.c = null; $('c-title').textContent = 'Новий челендж'; for (const id of ['c-name', 'c-desc', 'c-target', 'c-start', 'c-end']) $(id).value = ''; $('c-cancel').hidden = true; };
+$('c-cancel').onclick = resetC;
+$('c-save').onclick = safe(async () => {
+  const body = { title: $('c-name').value, description: $('c-desc').value || null, metric: $('c-metric').value, target: +$('c-target').value, start_date: $('c-start').value, end_date: $('c-end').value };
+  if (editing.c) await api('/admin/challenges/' + editing.c, { method: 'PUT', body });
+  else await api('/admin/challenges', { method: 'POST', body });
+  toast('Збережено'); resetC(); loaders.challenges();
+});
+
+// ---- users
+loaders.users = async () => {
+  const items = await api('/admin/users');
+  const me = store.get('email');
+  $('u-list').innerHTML = '<table><thead><tr><th>Email</th><th>Роль</th><th>Створено</th><th></th></tr></thead><tbody>' + items.map(u => `<tr><td>${esc(u.email)}</td>
+    <td><select data-role="${u.id}" style="width:auto" ${u.email === me ? 'disabled' : ''}><option value="user" ${u.role === 'user' ? 'selected' : ''}>user</option><option value="admin" ${u.role === 'admin' ? 'selected' : ''}>admin</option></select></td>
+    <td>${fmtDate(u.created_at)}</td><td>${u.email === me ? '' : `<button class="small danger" data-del="${u.id}">Видалити</button>`}</td></tr>`).join('') + '</tbody></table>';
+  $('u-list').querySelectorAll('[data-role]').forEach(s => s.onchange = safe(async () => { await api('/admin/users/' + s.dataset.role, { method: 'PUT', body: { role: s.value } }); toast('Роль змінено'); }));
+  $('u-list').querySelectorAll('[data-del]').forEach(b => b.onclick = safe(async () => {
+    if (!confirm('Видалити користувача разом з усіма його даними?')) return;
+    await api('/admin/users/' + b.dataset.del, { method: 'DELETE' }); toast('Користувача видалено'); loaders.users();
+  }));
+};
+
+// ---- reports
+loaders.reports = async () => {
+  const from = daysAgoISO(+$('rp').value);
+  const [pop, act] = await Promise.all([api('/reports/popular?limit=8&from=' + from), api('/reports/activity?from=' + from)]);
+  $('pop-empty').hidden = pop.data.length > 0;
+  drawChart('popular', { type: 'bar', data: { labels: pop.data.map(r => r.title), datasets: [{ label: 'Виконань', data: pop.data.map(r => r.sessions), backgroundColor: '#2563eb' }] }, options: { indexAxis: 'y', responsive: true } });
+  const d = act.data, a = d.avg_per_active_user, r = d.avg_per_registered_user;
+  $('avg').innerHTML = `<div class="muted mb">Користувачів: ${d.total_users}, активних: ${d.active_users}</div>
+    <table><thead><tr><th></th><th>На активного</th><th>На всіх</th></tr></thead><tbody>
+    <tr><td>Тренувань</td><td>${a.sessions}</td><td>${r.sessions}</td></tr><tr><td>Хвилин</td><td>${a.minutes}</td><td>${r.minutes}</td></tr>
+    <tr><td>Калорій</td><td>${a.calories}</td><td>${r.calories}</td></tr></tbody></table>`;
+};
+$('rp').onchange = safe(loaders.reports);
+
+await loaders.workouts();
+{% endblock %}

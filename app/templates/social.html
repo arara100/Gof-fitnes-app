@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Досягнення, челенджі, рейтинг</h1>
+<div class="card mb"><h2>Досягнення</h2><div class="grid cols-3" id="ach"></div></div>
+<div class="card mb"><h2>Челенджі</h2><div class="grid cols-3" id="chal"></div></div>
+<div class="card"><h2>Рейтинг</h2>
+  <div class="row mb">
+    <select id="metric" style="width:auto"><option value="calories">Калорії</option><option value="sessions">Тренування</option><option value="minutes">Хвилини</option></select>
+    <select id="period" style="width:auto"><option value="week">Тиждень</option><option value="month">Місяць</option><option value="all">Весь час</option></select></div>
+  <div id="board"></div></div>
+{% endblock %}
+{% block script %}
+async function loadAch() {
+  const items = await api('/achievements');
+  document.getElementById('ach').innerHTML = items.map(a => `
+    <div class="card" style="${a.earned ? 'border-color:var(--ok)' : 'opacity:.6'}"><b>${a.earned ? '🏆' : '🔒'} ${esc(a.title)}</b>
+      <div class="muted">${esc(a.description || '')} ${a.threshold} ${METRIC_NAMES[a.metric]}</div>
+      <div class="muted">${a.earned ? 'Отримано ' + fmtDate(a.earned_at) : 'Ще не отримано'}</div></div>`).join('') || '<div class="empty">Досягнень немає</div>';
+}
+async function loadChal() {
+  const items = await api('/challenges');
+  document.getElementById('chal').innerHTML = items.map(c => {
+    const pct = c.joined ? Math.min(100, Math.round(c.progress / c.target * 100)) : 0;
+    return `<div class="card"><div class="row between"><b>${esc(c.title)}</b><span class="badge ${c.status}">${STATUS_NAMES[c.status]}</span></div>
+      <div class="muted mb">${c.start_date} — ${c.end_date} · ціль ${c.target} ${METRIC_NAMES[c.metric]}</div>
+      ${c.joined ? `<div class="bar"><div style="width:${pct}%"></div></div><div class="muted">${Math.round(c.progress)} / ${c.target} (${pct}%) ${c.completed ? '✅' : ''}</div>`
+        : (c.status === 'finished' ? '' : `<button class="small" data-id="${c.id}">Приєднатися</button>`)}</div>`;
+  }).join('') || '<div class="empty">Челенджів немає</div>';
+  document.querySelectorAll('#chal button').forEach(b => b.onclick = safe(async () => {
+    await api(`/challenges/${b.dataset.id}/join`, { method: 'POST' }); toast('Ви приєдналися'); loadChal();
+  }));
+}
+async function loadBoard() {
+  const metric = document.getElementById('metric').value;
+  const rows = await api(`/leaderboard?metric=${metric}&period=${document.getElementById('period').value}`);
+  document.getElementById('board').innerHTML = rows.length ? '<table><thead><tr><th>#</th><th>Користувач</th><th>Результат</th></tr></thead><tbody>' +
+    rows.map(r => `<tr><td>${r.rank}</td><td>${esc(r.name)}</td><td>${r.value} ${METRIC_NAMES[metric]}</td></tr>`).join('') + '</tbody></table>' : '<div class="empty">Ще немає даних</div>';
+}
+document.getElementById('metric').onchange = safe(loadBoard);
+document.getElementById('period').onchange = safe(loadBoard);
+await Promise.all([loadAch(), loadChal(), loadBoard()]);
+{% endblock %}

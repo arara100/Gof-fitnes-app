@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Профіль</h1>
+<div class="grid cols-2">
+  <div class="card"><h2>Мої дані</h2>
+    <div class="row"><div class="field" style="flex:1"><label>Стать</label><select id="gender"><option value="">—</option><option value="male">Чоловіча</option><option value="female">Жіноча</option><option value="other">Інша</option></select></div>
+      <div class="field" style="flex:1"><label>Вік</label><input type="number" id="age" min="5" max="120"></div></div>
+    <div class="row"><div class="field" style="flex:1"><label>Вага, кг</label><input type="number" id="weight_kg" step="0.1"></div>
+      <div class="field" style="flex:1"><label>Зріст, см</label><input type="number" id="height_cm" step="0.1"></div></div>
+    <div class="field"><label>Ціль</label><select id="goal"><option value="">—</option><option value="lose_weight">Схуднення</option><option value="gain_muscle">Набір маси</option><option value="endurance">Витривалість</option></select></div>
+    <button id="save">Зберегти</button></div>
+  <div class="card"><h2>Записати вагу</h2>
+    <div class="row"><input type="number" id="w-val" step="0.1" placeholder="кг" style="flex:1"><input type="date" id="w-date" style="flex:1"><button id="w-add">Додати</button></div>
+    <div id="w-list" class="mt"></div></div>
+</div>
+{% endblock %}
+{% block script %}
+const fields = ['gender', 'age', 'weight_kg', 'height_cm', 'goal'];
+async function loadProfile() {
+  const me = await api('/users/me');
+  for (const f of fields) document.getElementById(f).value = me.profile?.[f] ?? '';
+}
+async function loadWeights() {
+  const items = (await api('/weight')).reverse();
+  document.getElementById('w-list').innerHTML = items.length ? '<table><tbody>' + items.map(w => `<tr><td>${w.date}</td><td>${w.weight_kg} кг</td></tr>`).join('') + '</tbody></table>' : '<div class="empty">Записів немає</div>';
+}
+document.getElementById('save').onclick = safe(async () => {
+  const body = {};
+  for (const f of fields) { const v = document.getElementById(f).value; if (v !== '') body[f] = ['gender', 'goal'].includes(f) ? v : +v; }
+  await api('/users/me', { method: 'PUT', body }); toast('Профіль збережено');
+});
+document.getElementById('w-date').value = todayISO();
+document.getElementById('w-add').onclick = safe(async () => {
+  await api('/weight', { method: 'POST', body: { weight_kg: +document.getElementById('w-val').value, date: document.getElementById('w-date').value } });
+  toast('Вагу записано'); await Promise.all([loadWeights(), loadProfile()]);
+});
+await Promise.all([loadProfile(), loadWeights()]);
+{% endblock %}

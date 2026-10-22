@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Нагадування</h1>
+<div class="grid cols-2">
+  <div class="card"><h2>Нове нагадування</h2>
+    <div class="field"><label>Час</label><input type="time" id="r-time" value="08:00"></div>
+    <div class="field"><label>Дні</label><div id="r-days"></div></div>
+    <button id="r-add">Додати</button>
+    <h2 class="mt">Мої нагадування</h2><div id="list"></div></div>
+  <div class="card"><h2>Сповіщення</h2><div id="inbox"></div></div>
+</div>
+{% endblock %}
+{% block script %}
+document.getElementById('r-days').innerHTML = DAYS.map((d, i) => `<label class="inline"><input type="checkbox" value="${i}" checked> ${d}</label>`).join('');
+async function loadList() {
+  const items = await api('/reminders');
+  document.getElementById('list').innerHTML = items.map(r => `
+    <div class="row between mb"><span><b>${r.time}</b> <span class="muted">${r.days.map(d => DAYS[d]).join(', ')}</span></span>
+      <span class="row"><label class="inline"><input type="checkbox" data-toggle="${r.id}" ${r.enabled ? 'checked' : ''}> увімк.</label><button class="small danger" data-del="${r.id}">✕</button></span></div>`).join('') || '<div class="empty">Нагадувань немає</div>';
+  document.querySelectorAll('[data-toggle]').forEach(c => c.onchange = safe(async () => { await api('/reminders/' + c.dataset.toggle, { method: 'PUT', body: { enabled: c.checked } }); }));
+  document.querySelectorAll('[data-del]').forEach(b => b.onclick = safe(async () => { await api('/reminders/' + b.dataset.del, { method: 'DELETE' }); loadList(); }));
+}
+async function loadInbox() {
+  const items = await api('/notifications');
+  document.getElementById('inbox').innerHTML = items.map(n => `
+    <div class="row between mb" style="${n.is_read ? 'opacity:.55' : ''}"><span>${esc(n.message)}<div class="muted">${fmtDate(n.created_at)}</div></span>
+      ${n.is_read ? '' : `<button class="small ghost" data-id="${n.id}">Прочитано</button>`}</div>`).join('') || '<div class="empty">Сповіщень немає</div>';
+  document.querySelectorAll('#inbox button').forEach(b => b.onclick = safe(async () => { await api(`/notifications/${b.dataset.id}/read`, { method: 'POST' }); loadInbox(); }));
+}
+document.getElementById('r-add').onclick = safe(async () => {
+  const days = [...document.querySelectorAll('#r-days input:checked')].map(c => +c.value);
+  await api('/reminders', { method: 'POST', body: { time: document.getElementById('r-time').value, days } });
+  toast('Нагадування додано'); loadList();
+});
+await Promise.all([loadList(), loadInbox()]);
+{% endblock %}

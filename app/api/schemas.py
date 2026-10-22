@@ -201,3 +201,13 @@ def serialize_notification(n):
         "id": n.id, "message": n.message, "is_read": n.is_read,
         "created_at": n.created_at.isoformat(), "reminder_id": n.reminder_id,
     }
+
+
+class ReportQuerySchema(Schema):
+    date_from = fields.DateTime(data_key="from")
+    date_to = fields.DateTime(data_key="to")
+    limit = fields.Integer(load_default=10, validate=validate.Range(min=1, max=100))
+
+
+class RoleSchema(Schema):
+    role = fields.String(required=True, validate=validate.OneOf(("user", "admin")))

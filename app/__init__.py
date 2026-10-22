@@ -16,7 +16,7 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
     jwt.init_app(app)
 
-    from app.api import auth, plans, reminders, sessions, social, stats, users, workouts
+    from app.api import admin_users, auth, plans, reminders, reports, sessions, social, stats, users, workouts
 
     app.register_blueprint(auth.bp)
     app.register_blueprint(users.bp)
@@ -26,6 +26,12 @@ def create_app(config_class=Config):
     app.register_blueprint(stats.bp)
     app.register_blueprint(social.bp)
     app.register_blueprint(reminders.bp)
+    app.register_blueprint(reports.bp)
+    app.register_blueprint(admin_users.bp)
+
+    from app.web import views
+
+    app.register_blueprint(views.bp)
 
     from app.patterns.observers import register_observers
 

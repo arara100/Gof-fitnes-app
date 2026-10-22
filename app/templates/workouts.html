@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Бібліотека тренувань</h1>
+<div class="card mb row">
+  <div style="flex:1;min-width:160px"><label>Пошук</label><input id="f-q" placeholder="Назва..."></div>
+  <div><label>Тип</label><select id="f-type"><option value="">Усі</option><option value="cardio">Кардіо</option><option value="strength">Силові</option><option value="yoga">Йога</option></select></div>
+  <div><label>Складність</label><select id="f-diff"><option value="">Будь-яка</option><option value="easy">Легко</option><option value="medium">Середньо</option><option value="hard">Важко</option></select></div>
+</div>
+<div class="grid cols-3" id="list"></div>
+{% endblock %}
+{% block script %}
+async function load() {
+  const p = new URLSearchParams();
+  for (const [k, id] of [['q', 'f-q'], ['type', 'f-type'], ['difficulty', 'f-diff']]) {
+    const v = document.getElementById(id).value; if (v) p.set(k, v);
+  }
+  const items = await api('/workouts?' + p);
+  document.getElementById('list').innerHTML = items.map(w => `
+    <div class="card"><div class="row between"><b>${esc(w.title)}</b><span class="badge ${esc(w.type)}">${TYPE_NAMES[w.type]}</span></div>
+      <div class="muted mb">${esc(w.description || '')}</div>
+      <div class="muted">${w.duration_min} хв · ${DIFF_NAMES[w.difficulty]} · MET ${w.met}</div>
+      <div class="row mt"><input type="number" min="1" placeholder="${w.duration_min} хв" style="width:90px" id="m-${w.id}">
+        <button class="small" data-id="${w.id}">Виконав(ла)</button></div></div>`).join('') || '<div class="empty">Нічого не знайдено</div>';
+  document.querySelectorAll('#list button').forEach(b => b.onclick = safe(async () => {
+    const body = { workout_id: +b.dataset.id };
+    const m = document.getElementById('m-' + b.dataset.id).value; if (m) body.duration_min = +m;
+    const s = await api('/sessions', { method: 'POST', body });
+    toast(`Тренування збережено: ${s.calories} ккал`);
+  }));
+}
+for (const id of ['f-type', 'f-diff']) document.getElementById(id).onchange = safe(load);
+document.getElementById('f-q').oninput = safe(load);
+await load();
+{% endblock %}

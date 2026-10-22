@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }} · FitTrack</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <nav class="top" id="nav"></nav>
+  <main>{% block content %}{% endblock %}</main>
+  <div id="toast"></div>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script>
+    (async () => {
+      {% block auth %}await requireAuth();{% endblock %}
+      renderNav();
+      {% block script %}{% endblock %}
+    })().catch(e => toast(e.message, 'err'));
+  </script>
+</body>
+</html>
